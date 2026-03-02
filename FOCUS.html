@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pomodoro Timer</title>
+  <!-- Canvas-confetti effect (via CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    body {
+      background: #f3f1ec;
+      font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; margin: 0;
+      transition: background 0.4s, color 0.4s;
+    }
+    .container {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 4px 22px rgba(30,30,30,0.08);
+      padding: 2.5em 2em;
+      min-width: 340px; max-width: 400px; width: 100%;
+      text-align: center; position: relative;
+      transition: background 0.4s, color 0.4s;
+    }
+    h1 {
+      color: #ec6066; font-weight:700; letter-spacing:2px;
+      font-size: 2rem; margin: .4em 0 1rem 0; transition: color 0.4s;
+    }
+    #darkModeToggle {
+      position: absolute; top: 1em; right: 1em;
+      background: #222; color: #fff; border: none;
+      border-radius: 16px; padding: 0.4em 1em; font-size: 1em;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(40,40,40,0.08);
+      transition: background 0.2s;
+    }
+    #darkModeToggle:hover { background: #4d4d5b; }
+
+    .timing-section {
+      display: flex; justify-content: center; align-items: center; gap: 10px;
+      margin-bottom: 1.09em; color: #ec6066; font-size: 1em;
+    }
+    .timing-section input[type=number] {
+      font-size:1em; border-radius: 6px;
+      border:1px solid #e8e6db; padding: 3px 10px; width:54px;
+      background: #f7f5ee; color: #263238;
+    }
+    .timing-section label { font-weight: 500; }
+    .timing-section button {
+      background: #ec6066; color: #fff; border: none; border-radius: 5px;
+      padding: 0.32em 1em; font-size:1em; cursor: pointer;
+      transition: background 0.15s; margin-left:7px;
+    }
+    .timing-section button:hover { background: #f88c90; }
+    #phase {
+      font-size: 1.11em; font-weight: 500; color: #37a193; margin-bottom: 0.7em;
+      transition: color 0.4s; letter-spacing: 1px;
+    }
+    #timer {
+      font-size: 2.7em; color: #222; margin-bottom: .55em; letter-spacing: 3px;
+      transition: color 0.4s;
+    }
+
+    .progress-ring {
+      display:block; margin:0 auto 1em auto; width:120px; height:120px;
+      position:relative;
+    }
+    .progress-text {
+      position:absolute; left:0; right:0; top:44px; font-size:1.4em; color:#ec6066;font-weight:600;
+      margin:0; pointer-events:none;
+    }
+    .daily-count {
+      margin: .5em 0 1.2em 0; color:#37a193;font-weight:500;
+    }
+
+    .controls {
+      margin-bottom: 1.1em;
+    }
+    .controls button {
+      background: #ec6066; color: #fff; border: none; border-radius: 6px;
+      padding: 0.72em 1.1em; font-size: 1em; margin: 0 0.57em;
+      cursor: pointer; transition: background 0.17s;
+    }
+    .controls button:hover:not(:disabled) { background: #f88c90; }
+    .controls button:disabled {
+      background: #e8e6db; color: #8b8b9d; cursor: not-allowed;
+    }
+    .footer {
+      margin-top: 1rem; color: #888; font-size: 0.98em;
+      transition: color 0.4s;
+    }
+    .notes-section { margin-top: 2em; text-align: left; border-top:1px solid #eee; padding-top:1em; }
+    .notes-section label { color: #ec6066; font-weight: 500; font-size: 1.05em; margin-bottom: 0.35em; display:inline-block; }
+    .notes-section textarea {
+      width: 100%; min-height: 54px; padding: 0.6em;
+      font-size: 1em; border-radius: 6px; border: 1px solid #e8e6db;
+      background: #fcfcf7; color: #222; font-family: inherit;
+      margin-bottom: 0.7em; resize: vertical; transition: background 0.3s, color 0.3s;
+    }
+    .note-actions { text-align: right; }
+    .note-actions button {
+      background: #37a193; color: #fff; border: none;
+      border-radius: 5px; padding: 0.46em 1em; font-size: 0.97em; margin-left:.3em;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .note-actions button:hover { background: #218e7b; }
+    .note-saved { color: #37a193; font-size: 0.96em; margin-top:0.4em; display:block;}
+    .hide { display: none !important;}
+    /* Reward Modal */
+    #giftModal { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:99999;}
+    .gift-content {
+      background: #fff; text-align: center; border-radius: 12px; max-width:300px;width:100%;
+      box-shadow: 0 10px 28px rgba(30,30,30,0.18); padding:2em 1.3em;
+    }
+    #giftModal.hide { display: none; }
+    body.dark-mode { background: #232326;color: #ecf0f1;}
+    .container.dark-mode { background: #1c1b1d;color: #ecf0f1;box-shadow: 0 4px 22px rgba(20,20,20,0.18);}
+    body.dark-mode h1 { color: #f88c90; }
+    body.dark-mode #darkModeToggle { background: #434656;}
+    body.dark-mode #phase { color: #37ffd9; }
+    body.dark-mode #timer, body.dark-mode .footer { color: #dde3ea;}
+    body.dark-mode .controls button, body.dark-mode .timing-section button { background: #434656; color: #fafafa;}
+    body.dark-mode .controls button:disabled { background: #232326; color: #555;}
+    body.dark-mode .controls button:hover:not(:disabled),
+    body.dark-mode #darkModeToggle:hover,
+    body.dark-mode .timing-section button:hover { background: #f88c90; color: #fff;}
+    body.dark-mode .timing-section label { color: #f88c90;}
+    body.dark-mode .timing-section input[type="number"] { background: #19171a; color: #fff; border-color: #434656;}
+    body.dark-mode .notes-section label { color: #f88c90;}
+    body.dark-mode .notes-section textarea { background: #232326; color: #ecf0f1; border-color: #434656;}
+    body.dark-mode .note-actions button { background: #37ffd9; color: #222;}
+    body.dark-mode .note-actions button:hover { background: #ec6066; color: #fff;}
+    body.dark-mode .note-saved { color: #37ffd9;}
+    body.dark-mode .gift-content { background: #222;color:#fff;}
+    ::placeholder { color: #bbb;}
+    body.dark-mode ::placeholder { color: #666;}
+  </style>
+</head>
+<body>
+  <div class="container" id="mainContainer">
+    <button id="darkModeToggle">🌙 Dark Mode</button>
+    <h1>Pomodoro Timer</h1>
+    <div class="timing-section">
+      <label for="workDurationInput">Work</label>
+      <input type="number" id="workDurationInput" min="1" max="120" value="25">min
+      <label for="breakDurationInput" style="margin-left:1em;">Break</label>
+      <input type="number" id="breakDurationInput" min="1" max="60" value="5">min
+      <button id="timingSave">Set</button>
+    </div>
+    
+    <!-- Progress ring and session tracker -->
+    <svg class="progress-ring" width="120" height="120">
+      <circle stroke="#e8e6db" stroke-width="7" fill="transparent" r="52" cx="60" cy="60"/>
+      <circle id="progressCircle" stroke="#ec6066" stroke-width="7" fill="transparent" r="52" cx="60" cy="60" stroke-dasharray="326" stroke-dashoffset="0"/>
+    </svg>
+    <div class="progress-text" id="progressText">0%</div>
+    <div class="daily-count"><span id="todayCount">0</span> Pomodoro today 🕑</div>
+    
+    <div id="phase">Work Time!</div>
+    <div id="timer">25:00</div>
+    <div class="controls">
+      <button id="start">Start</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="footer">
+      Stay productive! Enjoy short breaks for better focus.
+    </div>
+    <div class="notes-section" id="notes-sec">
+      <label for="notes">Notes</label><br>
+      <textarea id="notes" placeholder="Write your notes, tasks, reminders, or reflection here..."></textarea>
+      <div class="note-actions">
+        <button id="saveNote">Save</button>
+        <button id="clearNote">Clear</button>
+      </div>
+      <span id="noteSavedMsg" class="note-saved hide">Saved!</span>
+    </div>
+    <!-- Reward Gift Modal -->
+    <div id="giftModal" class="hide">
+      <div class="gift-content">
+        <h2>🎁 You earned a gift!</h2>
+        <div id="giftEmoji" style="font-size: 2.6em; margin: 0.5em;"></div>
+        <div id="giftMessage" style="margin-bottom:1.1em;"></div>
+        <button onclick="closeGift()">Thanks!</button>
+      </div>
+    </div>
+    <audio id="notify-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YZAAABEAAAAAAEBAQEAQAAAAAAQAAQAAEAEAAAEABAwAABAAEAQAAEAAAEAQAQAAAEABAAEAQAAAEABAAEAQAAAEABA=="></audio>
+  </div>
+  <script>
+    // State
+    let workDuration = 25 * 60; // seconds
+    let breakDuration = 5 * 60; // seconds
+    let isWorkTime = true, timeLeft = workDuration;
+    let timerInterval = null;
+    let pomodoroCountToday = 0;
+
+    // Elements
+    const timerDisplay = document.getElementById('timer');
+    const phaseDisplay = document.getElementById('phase');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const resetBtn = document.getElementById('reset');
+    const notifySound = document.getElementById('notify-sound');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const mainContainer = document.getElementById('mainContainer');
+    const workDurationInput = document.getElementById('workDurationInput');
+    const breakDurationInput = document.getElementById('breakDurationInput');
+    const timingSave = document.getElementById('timingSave');
+    // Notes
+    const notesTextarea = document.getElementById('notes');
+    const saveNoteBtn = document.getElementById('saveNote');
+    const clearNoteBtn = document.getElementById('clearNote');
+    const noteSavedMsg = document.getElementById('noteSavedMsg');
+    // Reward (Gift)
+    const giftModal = document.getElementById('giftModal');
+    const giftEmoji = document.getElementById('giftEmoji');
+    const giftMessage = document.getElementById('giftMessage');
+    // Progress tracking
+    const progressCircle = document.getElementById('progressCircle');
+    const progressText = document.getElementById('progressText');
+    const todayCount = document.getElementById('todayCount');
+
+    // Confetti effect
+    function launchConfetti() {
+      confetti({
+        particleCount: 80,
+        angle: 90,
+        spread: 70,
+        startVelocity: 35,
+        origin: { y: 0.6 }
+      });
+    }
+
+    // Gift definitions
+    const gifts = [
+      { emoji:"🌟", msg:"Superstar! You focused so well." },
+      { emoji:"🍀", msg:"Lucky you! Try for another Pomodoro session." },
+      { emoji:"💡", msg:"Great job! Bright ideas ahead." },
+      { emoji:"🎉", msg:"Success! Time for a short break." },
+      { emoji:"🥇", msg:"Champion! You did it." },
+      { emoji:"🧸", msg:"Cozy break! You earned a fun gift." },
+      { emoji:"🎁", msg:"Gift unlocked! Keep collecting." }
+    ];
+
+    // Local storage for today session counter
+    function getTodayKey() {
+      const d = new Date();
+      return `pomo_sessions_${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    }
+    function loadTodayCount() {
+      pomodoroCountToday = parseInt(localStorage.getItem(getTodayKey()) || "0", 10);
+      todayCount.textContent = pomodoroCountToday;
+    }
+    function incrementTodayCount() {
+      pomodoroCountToday += 1;
+      localStorage.setItem(getTodayKey(), pomodoroCountToday);
+      todayCount.textContent = pomodoroCountToday;
+    }
+    loadTodayCount();
+
+    function showGift() {
+      const gift = gifts[Math.floor(Math.random()*gifts.length)];
+      giftEmoji.textContent = gift.emoji;
+      giftMessage.textContent = gift.msg;
+      giftModal.classList.remove('hide');
+      launchConfetti();
+    }
+    function closeGift() {
+      giftModal.classList.add('hide');
+    }
+
+    function updateProgressRing() {
+      const duration = isWorkTime ? workDuration : breakDuration;
+      const percent = Math.round(((duration - timeLeft)/duration)*100);
+      // Circle math for SVG
+      const radius = 52, circ = 2 * Math.PI * radius;
+      const progress = Math.max(0, Math.min(circ, circ * (1-percent/100)));
+      progressCircle.style.strokeDasharray = circ;
+      progressCircle.style.strokeDashoffset = progress;
+      progressText.textContent = `${percent}%`;
+    }
+
+    function updateDisplay() {
+      const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+      const s = (timeLeft % 60).toString().padStart(2, '0');
+      timerDisplay.textContent = `${m}:${s}`;
+      phaseDisplay.textContent = isWorkTime ? "Work Time!" : "Break Time!";
+      phaseDisplay.style.color = isWorkTime
+        ? (document.body.classList.contains('dark-mode') ? "#37ffd9" : "#37a193")
+        : (document.body.classList.contains('dark-mode') ? "#f88c90" : "#ec6066");
+      updateProgressRing();
+    }
+
+    function startTimer() {
+      if (!timerInterval) {
+        timerInterval = setInterval(() => {
+          if (timeLeft > 0) {
+            timeLeft--;
+            updateDisplay();
+          } else {
+            if (isWorkTime) {
+              incrementTodayCount();
+              showGift(); // Gift & confetti after work session
+            }
+            isWorkTime = !isWorkTime;
+            timeLeft = isWorkTime ? workDuration : breakDuration;
+            playNotification();
+            updateDisplay();
+          }
+        }, 1000);
+      }
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      resetBtn.disabled = false;
+    }
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+    function resetTimer() {
+      stopTimer();
+      timeLeft = isWorkTime ? workDuration : breakDuration;
+      updateDisplay();
+      startBtn.disabled = false;
+    }
+    function playNotification() {
+      notifySound.currentTime = 0;
+      notifySound.play();
+    }
+
+    // Dark Mode
+    let dark = false;
+    darkModeToggle.addEventListener('click', function() {
+      dark = !dark;
+      document.body.classList.toggle('dark-mode', dark);
+      mainContainer.classList.toggle('dark-mode', dark);
+      darkModeToggle.textContent = dark ? "☀️ Light Mode" : "🌙 Dark Mode";
+      updateDisplay();
+    });
+
+    // Timer controls
+    startBtn.addEventListener('click', startTimer);
+    stopBtn.addEventListener('click', stopTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    timingSave.addEventListener('click', function() {
+      let workMins = parseInt(workDurationInput.value, 10);
+      let breakMins = parseInt(breakDurationInput.value, 10);
+      if (isNaN(workMins) || workMins < 1 || workMins > 120) workMins = 25;
+      if (isNaN(breakMins) || breakMins < 1 || breakMins > 60) breakMins = 5;
+      workDuration = workMins * 60;
+      breakDuration = breakMins * 60;
+      stopTimer();
+      isWorkTime = true;
+      timeLeft = workDuration;
+      updateDisplay();
+    });
+
+    // Notes logic
+    function loadNote() {
+      const note = localStorage.getItem('pomo_note') || '';
+      notesTextarea.value = note;
+    }
+    function saveNote() {
+      localStorage.setItem('pomo_note', notesTextarea.value);
+      noteSavedMsg.classList.remove('hide');
+      setTimeout(() => noteSavedMsg.classList.add('hide'), 1100);
+    }
+    function clearNote() {
+      notesTextarea.value = '';
+      saveNote();
+    }
+    saveNoteBtn.addEventListener('click', saveNote);
+    clearNoteBtn.addEventListener('click', clearNote);
+    window.addEventListener('load', loadNote);
+
+    // Initial UI setup
+    updateDisplay();
+
+    // Optional: Alert if user switches tab
+    // document.addEventListener('visibilitychange', function() {
+    //   if (document.hidden) {
+    //     alert('Stay focused! Keep this tab active for your Pomodoro session.');
+    //   }
+    // });
+  </script>
+</body>
+</html>
